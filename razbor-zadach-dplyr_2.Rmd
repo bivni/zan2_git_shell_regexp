@@ -1,0 +1,143 @@
+---
+title: "data manipulation 1  тренировочные упражнения 2"
+author: "Ilya Kochergin"
+date: '24 марта 2016 г '
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Импорт данных для заданий
+
+
+
+```{r,include=F }
+file.exists("data") || dir.create("data") 
+```
+
+```{r,cache=TRUE}
+url_world_data <- "http://crow.academy.ru/~ikocherg/stud_do/2015vesna/world.txt.zip"
+file.exists("data/world.txt.zip") || download.file(url_world_data,destfile = "data/world.txt.zip")
+unzip("data/world.txt.zip",exdir = "data")
+```
+
+
+
+```{r,cache=TRUE}
+city <- read.csv2("data/city.txt",as.is=T)
+country <- read.csv2("data/country.txt",as.is=T)
+```
+
+
+
+Шпаргалка по пакету находится в [разделе шпаргалок RStudio](http://rstudio.com/cheatsheets) под именем **Data Wrangling Cheat Sheet**
+
+```{r,message=F}
+library(dplyr)
+```
+
+Преобразуем фреймы данных в усовершенствованные (local data frame), которые поддерживает пакет dplyr.
+
+```{r}
+city_t <- tbl_df(city)
+country_t <- tbl_df(country)
+```
+
+
+## Загруженные таблицы
+
+База world
+
+```{r}
+city_t
+country_t
+```
+
+## Практические задания
+
+**Задание 1**
+Выдайте названия территорий и стран мира, в которых нет крупных городов (нет соответствующих строк в таблице city_t)
+Запрос должен выдать такой результат:
+```{r,echo=F,eval=TRUE}
+anti_join(x = country_t,y=city_t,by="CountryCode") %>% 
+  select(Name,Continent) %>% 
+  arrange(Continent)
+```
+
+
+**Задание 2**
+Выдать названия регионов Европы, где есть города с населением более 7 миллионов и укажите количество таких городов.
+Ожидаемый вывод:
+```{r,echo=F}
+country_t %>% 
+  filter(Continent=="Europe") %>% 
+  inner_join(city_t %>% filter(Population>7e6), by="CountryCode") %>% 
+  group_by(Region ) %>% 
+  summarize(count=n())
+   
+```
+
+
+**Задание 3**
+Выдайте  те же регионы, что и в запросе из предыдущей задачи, но выдайте 
+только названия этих регионов, не выдавая количества городов.
+Сделайте это при помощи функции semi_join()  
+
+```{r,echo=F}
+country_t %>% 
+  filter(Continent=="Europe") %>% 
+  semi_join(city_t %>% filter(Population>7e6), by="CountryCode") %>% 
+  select(Region)
+```
+
+
+**Задание 4**
+Узнайте, у каких стран и территорий не указан год независимости. Выдайте только территории, c названиями начинающиеся с латинской буквы "A" и с населением более тысячи.  Столбцы: Name, Continent, Population. Подсказки:  в функции grepl   шаблон (pattern) строится по правилам [регулярных выражений](https://ru.wikipedia.org/wiki/Регулярные_выражения). Есть [целый сайт](http://www.regular-expressions.info/rlanguage.html) про них.  Если шаблон начинается с "^"", то он сопоставляется (match) только с началом строки. А символ "$" означает в шаблоне конец строки. Функции grep() и grepl() поддерживают следующие типы регулярных выражений:
+
+* Extended POSIX-compatible Regular Expression (ERE)
+* Perl Compatible Regular Expression (PCRE), в случае если добавлен параметр perl=TRUE
+
+Функция is.na() позволяет находить пустые значения (NA).
+
+Ожидаемый результат: 
+
+```{r,echo=F}
+country_t %>% 
+  filter(is.na(IndepYear) , grepl('^A',Name), Population>1e3) %>% 
+  select(Name, Continent, Population)
+```
+
+**Задание 5**
+Выдайте 5 регионов мира с наименьшим количеством столиц. Для того, чтобы не выводились регионы совсем без столиц примените inner_join(). 
+
+Ожидаемый результат: 
+
+```{r,echo=F,eval=T}
+inner_join(city_t,country_t,by=c("CityID"="Capital")) %>% 
+  group_by(Region) %>% 
+  summarize(kolvo_stolic=sum(!is.na(Name.x))) %>% 
+  arrange(kolvo_stolic) %>% 
+  head(5)
+  
+```
+
+
+**Задание 6**
+(модификация предыдущей задачи)
+
+Выдайте 5 регионов мира с наименьшим количеством столиц. Для того, чтобы выводились регионы с нулевым количеством столиц примените  другой тип join. Подсказка: "Хакерская" замена sql-ной функции count: sum(логическое выражение) -- будет интерпретировать TRUE как 1, а FALSE как 0, то есть подсчитает, сколько раз было выполнено условие. Вы можете подсчитать сколько с регионом связано столиц, исключая из подсчета те строки, которые получились в результате outer join  и содержат пустые значения (NA) в тех полях, где в нормальных условиях NA не могут появиться. 
+
+Ожидаемый результат: 
+
+```{r,echo=F,eval=T}
+right_join(city_t,country_t,by=c("CityID"="Capital")) %>% 
+  group_by(Region) %>% 
+  summarize(kolvo_stolic=sum(!is.na(Name.x))) %>% 
+  arrange(kolvo_stolic) %>% 
+  head(5)
+  
+```
+
+

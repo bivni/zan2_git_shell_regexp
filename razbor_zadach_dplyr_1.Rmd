@@ -1,0 +1,258 @@
+---
+title: "data manipulation 1  практическое задание"
+subtitle: "Имрорт из текстовых файлов и начала ипользования пакета dplyr"
+author: "Ilya Kochergin"
+date: '12 марта 2016 г '
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Импорт донных для заданий
+
+```{r}
+  girls.textdata= 
+  "row.name|name|age|hobby|height
+  g1|Лена|19|лыжи|166
+  g2|Жанна|22|вышивка|156,5
+  g3|Даша|29|лыжи|180
+  g4|Ира|26|танцы|170 
+  g5|Зина|16|танцы|160" 
+girls <- read.delim(header=T,
+  sep="|" , dec = ",",
+  text= girls.textdata,
+  row.names = 1, 
+  stringsAsFactors = F
+  )
+boys.textdata= 
+  "row.name|name|age|hobby|height
+  b1|Гена|19|лыжи|188
+  b2|Женя|32|мотоцикл|166,5
+  b3|Саша|29|лыжи|180
+  b4|Дима|26|танцы|170" 
+boys <- read.delim(header=T,
+  sep="|" , dec = ",",
+  text= boys.textdata,
+  row.names = 1, 
+  stringsAsFactors = F
+  )
+```
+
+
+```{r,include=F }
+file.exists("data") || dir.create("data") 
+```
+
+```{r}
+url_world_data <- "http://crow.academy.ru/~ikocherg/stud_do/2015vesna/world.txt.zip"
+download.file(url_world_data,destfile = "data/world.txt.zip")
+unzip("data/world.txt.zip",exdir = "data")
+```
+
+
+
+```{r}
+city <- read.csv2("data/city.txt",as.is=T)
+country <- read.csv2("data/country.txt",as.is=T)
+```
+
+
+
+Шпаргалка по пакету находится в [разделе шпаргалок RStudio](http://rstudio.com/cheatsheets) под именем **Data Wrangling Cheat Sheet**
+
+```{r,message=F}
+library(dplyr)
+```
+
+Преобразуем фреймы данных в усовершенстованные (local data frame), которые поддерживает пакет dplyr.
+
+```{r}
+city_t <- tbl_df(city)
+country_t <- tbl_df(country)
+```
+
+
+## Загруженные таблицы
+
+База world
+
+```{r}
+city_t
+country_t
+```
+
+
+База бабушек у подъезда
+
+```{r}
+girls
+boys
+
+```
+
+
+
+## Практические задания
+
+**Задание 1**
+Бабушки на лавочке у подъезда хотят обсудить возможные пары девочек и мальчиков из их подъезда. 
+Они решили рассмотреть пары с общими хобби и добавили еще дополнительные фильтры :
+разница в возрасте не должна превышать 6 лет  и выстота девушки должна быть строго меньше высоты юноши.
+Запрос должен выдать такой результат:
+```{r,echo=T}
+inner_join(x = girls,y=boys,by=c("hobby")) %>% 
+  filter(abs(age.x-age.y) <=6 , height.x<height.y)
+
+```
+
+
+**Задание 2**
+Показать страны, удовлетворяющие условию Region=="Baltic Countries"  упорядочив их по убыванию населения (Population). Выдайте только столбцы Name, Population, SurfaceArea. Ожидаемый результат:
+```{r,echo=T}
+country_t %>% 
+  filter(Region=="Baltic Countries") %>% 
+  arrange(desc(Population)) %>% 
+  select(Name,Population,SurfaceArea)
+
+```
+
+**Задание 3**
+Соедините таблицы city (city_t) и country (country_t) по полю CountryCode. Выдайте только информацию про те города, где население города (Population.x) больше чем количество граждан стран, в которой он расположен (Population.y).
+Выдайте в результат только столбцы, в имена которых содержат (containts() )
+строки "Population", "Name". Ожидаемый результат:
+
+```{r,echo=T}
+inner_join(city_t,country_t,by=c("CountryCode" = "CountryCode")) %>% 
+  filter(Population.x>Population.y) %>% 
+  select(contains("Population"), contains("Name"))
+```
+
+
+**Задание 4**
+Узнайте, сколько крупных городов (city) на каждом континенте и сколько суммарно людей живет в городах. Ожидаемый результат:
+
+```{r,echo=T}
+inner_join(city_t,country_t,by="CountryCode") %>% 
+  group_by(Continent) %>% 
+  summarize(TotalCityPopulation=sum(Population.x),TotalCityCount=n()) 
+```
+
+**Задание 5**
+ВЫдайте 5 самых больших по населению столиц Европы
+
+```{r,echo=T,eval=T}
+inner_join(city_t,country_t,by=c("CityID"="Capital")) %>% 
+  filter(Continent=="Europe") %>%
+  arrange(desc(Population.x)) %>% 
+  head(5) %>%
+  select(Name.x,Population.x,Name.y)
+```
+
+## Другие типы join
+
+Inner join
+
+```{r}
+girls
+boys
+inner_join(x=girls,y=boys,by="hobby")
+```
+
+
+Outer joins
+
+```{r}
+left_join(x=girls,y=boys,by="hobby")
+right_join(x=girls,y=boys,by="hobby")
+full_join(x=girls,y=boys,by="hobby")
+
+```
+
+Операции _**Join**_ выдающие данные из первой таблицы
+
+
+```{r}
+semi_join(x=girls,y=boys,by="hobby")
+anti_join(x=girls,y=boys,by="hobby")
+
+semi_join(y=girls,x=boys,by="hobby")
+anti_join(y=girls,x=boys,by="hobby")
+```
+
+
+
+## Задачи из курса БД
+
+1. Выдайте названия всех регионов, относящихся к Европе, без повторений.
+
+```{r}
+filter(country_t, Continent=="Europe") %>%
+  select(Region)  %>%
+  distinct()
+
+```
+
+2. Выдайте страны и территории, в которых население (population) составляет 0 жителей. Столбцы:Name, Population, Continent. Упорядочьте по столбцу continent (по возрастанию)
+
+```{r}
+ country_t %>%
+  filter(Population==0) %>%
+  arrange(Continent) %>%
+  select(Name, Population, Continent)
+
+```
+
+3. Выдайте информацию о странах (столбцы:Name, Population, Continent)  за пределами Азии и Океании в которых население (population) насчитывает более 100 млн. человек. Упорядочьте по континенту (по возрастанию)
+```{r}
+ country_t %>%
+  filter(Population>1e8, 
+         !(Continent %in% c("Asia","Oceania"))) %>%
+  arrange(Continent) %>%
+  select(Name, Population, Continent)
+
+```
+
+
+4. Выдайте страны  Европы, в которых плотность населения (Population/SurfaceArea) меньше 10 человек на квадратный километр. Воспользуйтесь полями Population и SurfaceArea (площадь в кв. километрах). Упорядочите  по плотности в убывающем порядке
+```{r}
+country_t %>%
+  filter(Continent=="Europe") %>%
+  transmute(Name, SurfaceArea, Population,
+            Density=Population/SurfaceArea) %>%
+  filter(Density<10) %>%
+  arrange(desc(Density))
+
+```
+
+5. Найдите страны в Европе и Африке, в которых средняя продолжительность жизни не указана в таблице (имеет значение null). Упорядочите поконтиненту
+
+```{r}
+ country_t %>%
+  filter(is.na(LifeExpectancy), 
+         Continent %in% c("Africa","Europe")) %>%
+  arrange(Continent) %>%
+  select(Name, Continent)
+
+```
+
+7. Сколько людей живет в странах, в которых  поле форма правления (GovernmentForm) содежит строку «Monarchy» но не содержит строку «Constitutional». Выдайте название, континент, форму правления, численность населения для каждой такой страны. Упорядочите по численности населения (population) по убыванию. Подсказка: функция grep() для сравнения строк с шаблоном
+
+```{r}
+country_t %>%
+  filter(!grepl(pattern="Constitutional",GovernmentForm) & grepl(pattern="Monarchy",GovernmentForm) ) %>%
+   select(Name,Continent,GovernmentForm,Population)
+
+```
+
+8. Найти страны в Америке, вторая и третья буква названия которых не являются латинской гласной буквой (aeoiuy). Шаблон поиска (pattern) задается в соответствии с правилами построения [регулярных вырашений]()
+
+```{r}
+country_t %>%
+  filter(grepl(pattern="America$", Continent )&
+        grepl(pattern="^.[^aeoiuy]{2}",Name)) %>%
+  select(Name,Continent)
+
+```
+
